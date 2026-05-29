@@ -1,0 +1,14 @@
+#输出文件夹
+outputs/
+
+#原始数据文件夹
+raw_data/
+
+#配置文件
+config.json
+
+#测试文件夹
+test/
+
+#缓存文件夹
+utils/__pycache__/
