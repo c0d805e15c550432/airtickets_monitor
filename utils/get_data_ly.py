@@ -11,7 +11,7 @@ from datetime import datetime, date
 from typing import Optional, Dict
 from playwright.sync_api import expect
 
-def ly_raw_data() -> Optional[Dict]:
+def ly_raw_data() -> tuple:
     """
     获取航班搜索原始响应数据
     通过加载config.json获取配置
@@ -28,7 +28,7 @@ def ly_raw_data() -> Optional[Dict]:
         )
         # 定义保存原始数据的空字典
         capture_container = {"response": None}
-        html_container = {"response": None}
+        html_container = {"response": ""}
 
 
         def on_response(response):
@@ -118,6 +118,7 @@ def ly_raw_data() -> Optional[Dict]:
         max_wait = 40 
         start_time = time.time()
         
+        batchSearch_response = None  # 初始化 batchSearch_response
         while time.time() - start_time < max_wait:
             # 检查元素是否存在（即使隐藏也算存在）
             if page.locator('#bbz-accounts-pc-global-maskLogin').count() > 0:
@@ -126,30 +127,32 @@ def ly_raw_data() -> Optional[Dict]:
                 page.wait_for_load_state("networkidle")  # 等待页面加载完成
                 continue                         
             # 当 "response" 不为 None 时开始分析数据
-            if (capture_container["response"] is not None) and (html_container["response"] is not None):
-                print("开始分析数据")                
-                try:                    
-                    batchSearch_response = capture_container["response"]
-                    #"resDesc"为请求成功且"FlightInfoSimpleList"在响应体中说明获取到有效数据
-                    if batchSearch_response.get("resDesc") == "请求成功" and "FlightInfoSimpleList" in batchSearch_response.get("body", {}):
-                        print("获取到有效数据！")
-                        if config["dump_raw_data"]:
-                            # 保存到文件
-                            filename1 = f"./raw_data/ly_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-                            with open(filename1, "w", encoding="utf-8") as f:
-                                json.dump(batchSearch_response, f, indent=2, ensure_ascii=False)
-                            print("数据已保存到", filename1)
-                            filename2 = f"./raw_data/ly_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-                            with open(filename2, "w", encoding="utf-8") as f:
-                                f.write(html_container["response"])
-                            print("数据已保存到", filename2)
-                        break
-                    else:
-                        raise ValueError("未获取到有效数据，可能遇到人机验证或请求异常")
+            if html_container["response"]:
+                time.sleep(5)  # 等待页面稳定
+                if capture_container["response"]:
+                    print("开始分析数据")                
+                    try:                    
+                        batchSearch_response = capture_container["response"]
+                        #"resDesc"为请求成功且"FlightInfoSimpleList"在响应体中说明获取到有效数据
+                        if batchSearch_response.get("resDesc") == "请求成功" and "FlightInfoSimpleList" in batchSearch_response.get("body", {}):
+                            print("获取到有效数据！")
+                            if config["dump_raw_data"]:
+                                # 保存到文件
+                                filename1 = f"./raw_data/ly_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                                with open(filename1, "w", encoding="utf-8") as f:
+                                    json.dump(batchSearch_response, f, indent=2, ensure_ascii=False)
+                                print("数据已保存到", filename1)
+                                filename2 = f"./raw_data/ly_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+                                with open(filename2, "w", encoding="utf-8") as f:
+                                    f.write(html_container["response"])
+                                print("数据已保存到", filename2)
+                            break
+                        else:
+                            raise ValueError("未获取到有效数据，可能遇到人机验证或请求异常")
 
-                except Exception as e:
-                    print(batchSearch_response)
-                    print("数据异常！",e)       
+                    except Exception as e:
+                        print(batchSearch_response)
+                        print("数据异常！",e)       
 
             time.sleep(0.5) # 循环检测间隔
 

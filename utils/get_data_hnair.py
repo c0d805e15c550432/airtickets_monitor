@@ -1,5 +1,5 @@
 """
-航班搜索原始数据抓取 - 飞猪旅行(fliggy.com)
+航班搜索原始数据抓取 - 海南航空(hnair.com)
 依赖：playwright (需安装: pip install playwright && playwright install chromium)
 功能：输入出发地/目的地/日期，返回 FlightListSearch 接口的完整 JSON 响应
 """
@@ -13,7 +13,7 @@ from playwright.sync_api import expect
 
         
 
-def fliggy_raw_data() -> Optional[Dict]:
+def hnair_raw_data() -> Optional[Dict]:
     """
     获取航班搜索原始响应数据
     通过加载config.json获取配置
@@ -22,12 +22,10 @@ def fliggy_raw_data() -> Optional[Dict]:
     with open("config.json", "r", encoding="utf-8") as f:
         config = json.load(f)
 
+    #初始化浏览器
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=config["headless"], args=['--disable-blink-features=AutomationControlled'])
-        context = browser.new_context(
-            viewport={'width': 1280, 'height': 800},
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        )
+        browser = p.chromium.launch(headless=config["headless"])
+        context = browser.new_context()
         
 
 # 1. 修改容器结构，初始值设为空字典
@@ -35,11 +33,10 @@ def fliggy_raw_data() -> Optional[Dict]:
 
         def on_response(response):
             # 2. 检查具体的 API 路径
-            if "search.htm" in response.url and response.request.method == "GET":
+            if "processNearByFlightSearch.do" in response.url:
                 if response.status == 200:
                     try:
-                        # 3. 必须通过键值对修改，才能影响到外部作用域
-                        res_body = response.text()[9:-1]
+                        res_body = response.json()
                         if res_body:
                             capture_container["response"] = res_body
                             # print(res_body[:100])  # 打印前500字符预览
@@ -49,36 +46,43 @@ def fliggy_raw_data() -> Optional[Dict]:
         context.on("response", on_response)
         page = context.new_page()
 
-        # 1. 访问飞猪首页
+        # 1. 访问首页
         print("正在加载航班搜索页...")
-        page.goto("https://www.fliggy.com/", wait_until="networkidle", timeout=10000)
+        page.goto("https://www.hnair.com/", wait_until="networkidle", timeout=10000)
         time.sleep(1)  # 等待页面稳定
 
 
         # 2. 填写出发地
         print(f"出发地: {config["depart"]}")
-        page.locator('input[id="form_depCity"]').first.fill(config["depart"])
+        inputbox = page.locator('input[id="from_city1"]').first
+        inputbox.click()  # 点击输入框以触发可能的事件
+        time.sleep(0.5)  # 等待可能的事件处理
+        inputbox.type(config["depart"])
         time.sleep(1)
         # 等待下拉框出现并选择第一个（通常自动补全）
-        page.keyboard.press("ArrowDown")
+        # page.keyboard.press("ArrowDown")
         page.keyboard.press("Enter")
         time.sleep(1)
 
         # 3. 填写目的地
         print(f"目的地: {config["arrive"]}")
-        page.locator('input[id="form_arrCity"]').first.fill(config["arrive"])
+        page.locator('input[id="to_city1"]').first.type(config["arrive"])
         time.sleep(1)
-        page.keyboard.press("ArrowDown")
+        # page.keyboard.press("ArrowDown")
         page.keyboard.press("Enter")
         time.sleep(1)
 
         # 4. 选择出发日期
-        print(f"出发日期: {config["year"]+config["month"]+config["day"]}")
-        page.locator('input[id="form_depDate"]').first.fill(config["year"] + "-" + config["month"] + "-" + config["day"])
+        depart_date = config["year"]+"-"+config["month"]+"-"+config["day"]
+        print(f"出发日期: {depart_date}")
+        page.locator('input[id="flightBeginDate1"]').first.fill(depart_date)
+
+        # 4.5.点击直飞
+        page.locator('text=只看直飞航班').first.click()
 
         # 5. 点击搜索按钮
         print("正在提交搜索...")
-        page.locator('button[class="search-button"]').first.click()
+        page.locator("button[onclick='checkScNum();']").first.click()
 
         # 6. 等待目标响应出现
         print("等待航班数据返回...")
@@ -96,20 +100,14 @@ def fliggy_raw_data() -> Optional[Dict]:
             if capture_container["response"] is not None:
                 print("开始分析数据")                
                 try:                    
-                    batchSearch_response = json.loads(capture_container["response"])
-
-                    if "flight" in batchSearch_response["data"]:
-                        # searchId有内容表面返回了数据
-                        print("获取到有效数据！")
-                        if config["dump_raw_data"]:
-                            # 保存到文件
-                            filename = f"./raw_data/fliggy_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-                            with open(filename, "w", encoding="utf-8") as f:
-                                json.dump(batchSearch_response, f, indent=2, ensure_ascii=False)
-                            print("数据已保存到", filename)
-                        break
-                    else:
-                        raise ValueError("未知错误")
+                    batchSearch_response = capture_container["response"]
+                    if config["dump_raw_data"]:
+                        # 保存到文件
+                        filename = f"./raw_data/hnair_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                        with open(filename, "w", encoding="utf-8") as f:
+                            json.dump(batchSearch_response, f, indent=2, ensure_ascii=False)
+                        print("数据已保存到", filename)
+                    break
                 except Exception as e:
                     # print(batchSearch_response)
                     print("数据异常！",e)       
@@ -126,5 +124,5 @@ def fliggy_raw_data() -> Optional[Dict]:
 
 
 if __name__ == "__main__":
-    fliggy_raw_data()
+    hnair_raw_data()
     

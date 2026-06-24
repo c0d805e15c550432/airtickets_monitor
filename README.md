@@ -42,7 +42,7 @@ playwright install chromium
 | 数据源 | 网址 | 特点 |
 |--------|------|------|
 | **携程旅行** | [ctrip.com](https://www.ctrip.com) | 数据全且准确，但容易触发人机验证或强制登录 |
-| **同程旅行** | [ly.com](https://www.ly.com) | 数据较全且准确，长时间运行稳定，不易触发反爬 |
+| **同程旅行** | [ly.com](https://www.ly.com) | 数据不全，且价格偏高，但长时间运行稳定，不易触发反爬 |
 | **飞猪旅行** | [fliggy.com](https://www.fliggy.com) | 数据较全，但价格含平台折扣，不够精准 |
 
 > 建议将同程（ly）作为首选数据源以获得最稳定的采集体验。

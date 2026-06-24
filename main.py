@@ -30,6 +30,9 @@ SOURCE_MAP = {
     "ctrip": ("携程", "#4CAF50"),
     "ly": ("同程", "#2196F3"),
     "fliggy": ("飞猪", "#FF9800"),
+    "csair": ("南航", "#F44336"),
+    "ceair": ("东航", "#9C27B0"),
+    "hnair": ("海航", "#009688")
 }
 
 
@@ -76,7 +79,7 @@ class AirfareMonitorGUI:
             "day": "25",
             "headless": True,
             "dump_raw_data": True,
-            "priority": ["ctrip", "ly", "fliggy"],
+            "priority": ["ctrip", "ly", "fliggy", "csair", "ceair", "hnair"],
             "monitored_flights": [],
             "interval_seconds": 7200,
             "auto_save_excel": True,
@@ -405,7 +408,7 @@ class AirfareMonitorGUI:
             if "(" in item and ")" in item:
                 src = item.split("(")[-1].split(")")[0].strip()
                 priority.append(src)
-        if len(priority) == 3:
+        if len(priority) >= 3:
             self.config["priority"] = priority
             self.save_config()
             self.log(f"数据源优先级已保存: {' → '.join(priority)}")
@@ -423,7 +426,7 @@ class AirfareMonitorGUI:
 
     def move_priority_down(self):
         sel = self.priority_listbox.curselection()
-        if sel and sel[0] < self.priority_listbox.size() - 1:
+        if sel and int(sel[0]) < self.priority_listbox.size() - 1:
             idx = sel[0]
             item = self.priority_listbox.get(idx)
             self.priority_listbox.delete(idx)
@@ -473,6 +476,8 @@ class AirfareMonitorGUI:
             "ctrip": process_data.ctrip,
             "ly": process_data.ly,
             "fliggy": process_data.fliggy,
+            "csair": process_data.csair,
+            "ceair": process_data.ceair,
         }
 
         for src in priority:
@@ -505,7 +510,7 @@ class AirfareMonitorGUI:
 
         for item in data_list:
             flight_no = item.get("flightNo", "?")
-            price = item.get("price", 0)
+            price = int(item.get("price", 0))
             source = item.get("source", "?")
 
             # 记录到内存
@@ -519,7 +524,7 @@ class AirfareMonitorGUI:
 
             # 更新最低价记录
             prev = self.price_lowest.get(flight_no)
-            if prev is None or price < prev["price"]:
+            if prev is None or int(price) < int(prev["price"]):
                 self.price_lowest[flight_no] = {
                     "price": price,
                     "source": source,
@@ -562,8 +567,8 @@ class AirfareMonitorGUI:
                     # 更新最低价
                     fn = r["flightNo"]
                     prev = self.price_lowest.get(fn)
-                    if prev is None or r["price"] < prev["price"]:
-                        self.price_lowest[fn] = {"price": r["price"], "source": r["source"], "time": r["time"]}
+                    if prev is None or int(r["price"]) < int(prev["price"]):
+                        self.price_lowest[fn] = {"price": int(r["price"]), "source": r["source"], "time": r["time"]}
                 self.count_label.config(text=f"记录数: {len(self.all_records)}")
             except Exception as e:
                 self.log(f"加载历史数据失败: {e}")

@@ -135,10 +135,15 @@ def ctrip_raw_data() -> Optional[Dict]:
         print("等待航班数据返回...")
         max_wait = 40 
         start_time = time.time()
+        reflash_attempts = 0
         
         while time.time() - start_time < max_wait:
             # 检查元素是否存在（即使隐藏也算存在）
             if page.locator('#bbz-accounts-pc-global-maskLogin').count() > 0:
+                reflash_attempts += 1
+                if reflash_attempts > 3:
+                    print("多次检测到登录弹窗，可能需要手动登录或切换数据源")
+                    break
                 print("检测到登录弹窗，刷新页面")
                 page.reload()
                 page.wait_for_load_state("networkidle")  # 等待页面加载完成
@@ -171,7 +176,7 @@ def ctrip_raw_data() -> Optional[Dict]:
                     else:
                         raise ValueError("未知错误")
                 except Exception as e:
-                    print(batchSearch_response)
+                    print(capture_container["response"])
                     print("数据异常！",e)       
 
             time.sleep(0.5) # 循环检测间隔
@@ -182,7 +187,7 @@ def ctrip_raw_data() -> Optional[Dict]:
         
         browser.close()
         
-        return batchSearch_response
+        return capture_container["response"]
 
 
 if __name__ == "__main__":
